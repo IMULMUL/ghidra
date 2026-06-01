@@ -78,7 +78,8 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 
 	private static String HELP_FILE = "ServerHelp.txt";
 	private static String USAGE_ARGS =
-		"[-ip <hostname>] [-i #.#.#.#] [-p#] [-n] [-a#] [-d<ad_domain>] [-e<days>] [-jaas <config_file>] [-u] [-autoProvision] [-anonymous] [-ssh] <repository_path>";
+		"[-ip <hostname>] [-ipAlt <hostname>[,...]] [-i #.#.#.#] [-p#] [-n] [-a#] [-d<ad_domain>]" +
+			" [-e<days>] [-jaas <config_file>] [-u] [-autoProvision] [-anonymous] [-ssh] <repository_path>";
 
 	private static final String RMI_SERVER_PROPERTY = "java.rmi.server.hostname";
 
@@ -499,7 +500,7 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 		}
 
 		ResourceFile serverRoot = new ResourceFile(Application.getInstallationDirectory(),
-			SystemUtilities.isInDevelopmentMode() ? "ghidra/Ghidra/RuntimeScripts/Common/server"
+			SystemUtilities.isInDevelopmentMode() ? "ghidra/Ghidra/RuntimeScripts/server"
 					: "server");
 		if (serverRoot.getFile(false) == null) {
 			System.err.println(
@@ -539,6 +540,7 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 		int defaultPasswordExpiration = -1;
 		boolean autoProvision = false;
 		File jaasConfigFile = null;
+		Set<String> altNames = new TreeSet<>();
 
 		// Network name resolution disabled by default
 		InetNameLookup.setLookupEnabled(false);
@@ -586,6 +588,24 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 				if (authMode == null) {
 					displayUsage("Invalid authentication mode: " + s);
 					System.exit(-1);
+				}
+			}
+			else if (s.startsWith("-ipAlt")) { // self-signed cert alt subject names
+				int nextArgIndex = i + 1;
+				String hostname;
+				if (s.length() == 6 && nextArgIndex < args.length) {
+					hostname = args[++i];
+				}
+				else {
+					hostname = s.substring(6);
+				}
+				for (String h : hostname.trim().split(";")) {
+					h = h.trim();
+					if (h.length() == 0 || h.startsWith("-")) {
+						displayUsage("Missing -ipAlt altName");
+						System.exit(-1);
+					}
+					altNames.add(h);
 				}
 			}
 			else if (s.startsWith("-ip")) { // setting server remote access hostname
@@ -793,7 +813,6 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 				DefaultKeyManagerFactory.addSubjectAlternativeName(hostname);
 
 				// Collect alternate hostnames for inclusion in certificate
-				Set<String> altNames = new TreeSet<>();
 				Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
 				while (nets.hasMoreElements()) {
 					NetworkInterface netint = nets.nextElement();

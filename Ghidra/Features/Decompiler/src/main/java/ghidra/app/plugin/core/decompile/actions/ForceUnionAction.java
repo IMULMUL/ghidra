@@ -82,8 +82,9 @@ public class ForceUnionAction extends AbstractDecompilerAction {
 			if (dt instanceof TypeDef) {
 				dt = ((TypeDef) dt).getBaseDataType();
 			}
-			if (dt instanceof Union)
+			if (dt instanceof Union) {
 				return (Union) dt;
+			}
 		}
 		return null;
 
@@ -97,6 +98,9 @@ public class ForceUnionAction extends AbstractDecompilerAction {
 		}
 
 		ClangToken tokenAtCursor = context.getTokenAtCursor();
+		if (tokenAtCursor == null) {
+			return false;
+		}
 		return findUnion(tokenAtCursor) != null;
 	}
 
